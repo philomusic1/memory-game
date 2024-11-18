@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Peaceful Memory Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #f0f4f8;
+            color: #2d3748;
+        }
+
+        .game-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 2rem;
+            max-width: 800px;
+            width: 90%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+        }
+
+        .start-button {
+            background: #0d9488;
+            color: white;
+            padding: 0.75rem 1.5rem;
+        }
+
+        .start-button:hover {
+            background: #0f766e;
+        }
+
+        .music-button {
+            background: #475569;
+            color: white;
+        }
+
+        .music-button:hover {
+            background: #334155;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            aspect-ratio: 1;
+            background: #e2e8f0;
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            transform-style: preserve-3d;
+        }
+
+        .card:hover {
+            background: #cbd5e1;
+        }
+
+        .card.flipped {
+            transform: rotateY(0deg);
+        }
+
+        .success-message {
+            text-align: center;
+            color: #0d9488;
+            font-size: 1.25rem;
+            margin-top: 2rem;
+        }
+
+        .shape {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .card.flipped .shape {
+            opacity: 1;
+        }
+
+        .audio-player {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>Peaceful Memory Game</h1>
+            <div class="controls">
+                <button class="start-button" onclick="startGame()">Start Game</button>
+                <button class="music-button" onclick="toggleMusic()">
+                    🔊
+                </button>
+            </div>
+        </div>
+        <div class="grid" id="gameGrid"></div>
+    </div>
+
+    <audio id="backgroundMusic" loop class="audio-player">
+        <source src="https://cdnjs.cloudflare.com/ajax/libs/sound-effects/1.0.0/peaceful-garden.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        const shapes = ['●', '■', '▲', '★', '♦', '♥'];
+        const colors = ['#3b82f6', '#8b5cf6', '#0d9488', '#4f46e5', '#06b6d4', '#0ea5e9'];
+        let cards = [];
+        let flipped = [];
+        let matched = [];
+        let isPlaying = false;
+        let isMuted = true;
+
+        const gameGrid = document.getElementById('gameGrid');
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        backgroundMusic.volume = 0.3;
+
+        function createCard(content, color, index) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<span class="shape" style="color: ${color}">${content}</span>`;
+            card.dataset.index = index;
+            card.addEventListener('click', () => handleCardClick(index));
+            return card;
+        }
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function startGame() {
+            gameGrid.innerHTML = '';
+            cards = [];
+            flipped = [];
+            matched = [];
+            isPlaying = true;
+
+            const gameShapes = [...shapes, ...shapes];
+            const shuffledCards = shuffle(gameShapes.map((shape, index) => ({
+                content: shape,
+                color: colors[shapes.indexOf(shape) % colors.length],
+                id: index
+            })));
+
+            shuffledCards.forEach((card, index) => {
+                const cardElement = createCard(card.content, card.color, index);
+                gameGrid.appendChild(cardElement);
+                cards.push(card);
+            });
+
+            if (!isMuted) {
+                backgroundMusic.play();
+            }
+        }
+
+        function handleCardClick(index) {
+            if (flipped.length === 2 || flipped.includes(index) || matched.includes(index)) return;
+
+            const card = gameGrid.children[index];
+            card.classList.add('flipped');
+            flipped.push(index);
+
+            if (flipped.length === 2) {
+                const [first, second] = flipped;
+                if (cards[first].content === cards[second].content) {
+                    matched.push(first, second);
+                    flipped = [];
+                    checkWin();
+                } else {
+                    setTimeout(() => {
+                        gameGrid.children[first].classList.remove('flipped');
+                        gameGrid.children[second].classList.remove('flipped');
+                        flipped = [];
+                    }, 1000);
+                }
+            }
+        }
+
+        function checkWin() {
+            if (matched.length === cards.length) {
+                setTimeout(() => {
+                    const message = document.createElement('div');
+                    message.className = 'success-message';
+                    message.innerHTML = `
+                        <p>Congratulations! You've matched all cards!</p>
+                        <button class="start-button" onclick="startGame()">Play Again</button>
+                    `;
+                    gameGrid.after(message);
+                }, 500);
+            }
+        }
+
+        function toggleMusic() {
+            isMuted = !isMuted;
+            const musicButton = document.querySelector('.music-button');
+            if (isMuted) {
+                backgroundMusic.pause();
+                musicButton.textContent = '🔈';
+            } else {
+                backgroundMusic.play();
+                musicButton.textContent = '🔊';
+            }
+        }
+    </script>
+</body>
+</html>
